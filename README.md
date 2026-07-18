@@ -10,6 +10,19 @@ Mutegroup 2, ohne Transposition), MIDI-Zeile aus dem
 [MIDI-Helper](https://github.com/j0888/midihelper), Regionen im Waveform markieren ·
 Export als `.st4s` → Import in Stage Traxx über *More Options → Import ST4 Files*.
 
+**Einzähler-Click:** Taktarten 2/4 · 3/4 · 4/4 · 5/4 · 6/8 · 7/8 · 9/8 · 12/8 mit korrekten
+Betonungen (bei Achtel-Taktarten beziehen sich die BPM auf die punktierte Viertel bzw. bei
+7/8 auf die Viertel). Optional **Cue-Ansage**: Der letzte Takt wird mit gesprochener Stimme
+angezählt („1, 2, 3, 4" — Deutsch oder Englisch, eingebettete Sprach-Samples, die Beeps
+treten dabei in den Hintergrund).
+
+**Optimieren-Modus:** Eine bestehende `.st4s`-Datei laden (auch mit mehreren Songs) —
+die App zeigt pro Song eine Diagnose (Lyrics fehlen / ohne Timecodes, BPM fehlt) und kann
+automatisch nachbessern: Lyrics-Suche via lrclib.net (vorhandene Lyrics werden nie ungefragt
+überschrieben, Vorschläge müssen bestätigt werden), BPM-Schätzung aus dem Archiv-Audio,
+Metadaten-Putzen („(Official Video)", „- Topic" …). Beim Export bleiben alle Audio-Dateien
+unverändert, nur `share_data.json` wird aktualisiert.
+
 ## Benutzung
 
 `index.html` im Browser öffnen — oder via GitHub Pages aufrufen.
