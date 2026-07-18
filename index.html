@@ -54,6 +54,15 @@
   .toggle { display: flex; align-items: center; gap: 10px; margin-top: 12px;
     background: var(--panel2); padding: 10px 14px; border-radius: 8px; cursor: pointer; }
   .toggle input { width: 18px; height: 18px; }
+  .tabs { display: flex; gap: 8px; margin-top: 14px; }
+  .tabs button { padding: 8px 16px; border-radius: 8px; }
+  .tabs button.active { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+  body.optimize .create-only { display: none !important; }
+  .opt-only { display: none; }
+  body.optimize .opt-only { display: block; }
+  .diag { font-size: 13px; margin: 2px 0; color: var(--muted); }
+  .diag.ok { color: var(--ok); } .diag.warn { color: var(--warn); }
+  .proposal { border: 1px solid var(--accent); border-radius: 8px; padding: 10px; margin-top: 10px; background: var(--panel2); }
   footer { color: var(--muted); font-size: 12.5px; margin-top: 26px; text-align: center; }
 </style>
 </head>
@@ -61,8 +70,13 @@
 <main>
   <h1>ST4 Studio <small>Song-Builder für Stage Traxx 4</small></h1>
 
+  <div class="tabs">
+    <button id="tabCreate" class="active">Neuen Song erstellen</button>
+    <button id="tabOptimize">ST4-Datei optimieren</button>
+  </div>
+
   <!-- 1. Metadaten -->
-  <section>
+  <section class="create-only">
     <h2>1 · Song</h2>
     <label>Spotify- oder YouTube-Link (optional)</label>
     <div class="row">
@@ -94,7 +108,7 @@
   </section>
 
   <!-- 2. Audio -->
-  <section>
+  <section class="create-only">
     <h2>2 · Audio (Track 1 · Original)</h2>
     <div class="drop" id="drop">MP3 hierher ziehen oder klicken<br>
       <span class="hint">Original-Song, z. B. via mp3cow.com aus YouTube exportiert</span></div>
@@ -103,23 +117,32 @@
   </section>
 
   <!-- 3. Click (Band) -->
-  <section class="band-only">
+  <section class="band-only create-only">
     <h2>3 · Einzähler-Click (Track 2 · Click)</h2>
     <div class="row">
-      <div><label>Takte</label><select id="clickBars"><option>1</option><option selected>2</option></select></div>
-      <div><label>Taktart</label><select id="clickMeter"><option selected>4/4</option><option>3/4</option><option>6/8</option></select></div>
+      <div><label>Takte</label><select id="clickBars"><option>1</option><option selected>2</option><option>4</option></select></div>
+      <div><label>Taktart</label><select id="clickMeter">
+        <option>2/4</option><option>3/4</option><option selected>4/4</option><option>5/4</option>
+        <option>6/8</option><option>7/8</option><option>9/8</option><option>12/8</option>
+      </select></div>
       <div><label>Start bei (Sek.)</label><input type="number" id="clickOffset" value="0" min="0" step="0.1"></div>
       <div style="align-self:end"><button id="btnClick">Click erzeugen</button><span class="status" id="clickStatus"></span></div>
     </div>
-    <div class="hint">Erzeugt WAV im Song-BPM: betonte 1, dann Viertel. Track 2 wird mit
+    <div class="hint" id="meterHint"></div>
+    <label class="toggle" style="margin-top:10px"><input type="checkbox" id="cueVoice">
+      <strong>Cue-Ansage</strong>
+      <span class="hint" style="margin:0">letzter Takt wird angezählt („1, 2, 3, 4“)</span>
+      <select id="cueLang" style="width:auto; margin-left:auto"><option value="de" selected>Deutsch</option><option value="en">English</option></select>
+    </label>
+    <div class="hint">Erzeugt WAV im Song-BPM mit betonter 1. Track 2 wird mit
       Mutegroup 2 und ohne Transposition angelegt. Alternativ eigene Datei:</div>
     <div style="margin-top:8px"><input type="file" id="clickFile" accept="audio/*"></div>
     <audio id="clickPreview" controls style="width:100%; margin-top:10px; display:none"></audio>
   </section>
 
   <!-- 4. Lyrics -->
-  <section>
-    <h2><span class="band-only" style="display:inline">4</span><span class="no-band">4</span> · Lyrics &amp; MIDI</h2>
+  <section class="create-only">
+    <h2>4 · Lyrics &amp; MIDI</h2>
     <div class="row">
       <div style="flex:0"><button id="btnLyrics">Lyrics suchen (lrclib.net)</button><span class="status" id="lyricsStatus"></span></div>
     </div>
@@ -133,7 +156,7 @@
   </section>
 
   <!-- 5. Regionen (Band) -->
-  <section class="band-only">
+  <section class="band-only create-only">
     <h2>5 · Regionen</h2>
     <div class="hint">Im Waveform einen Bereich aufziehen, um eine Region anzulegen.
       Leertaste: Play/Pause ab Cursor.</div>
@@ -145,11 +168,30 @@
   </section>
 
   <!-- Export -->
-  <section>
+  <section class="create-only">
     <h2>Export</h2>
     <button class="primary" id="btnExport">.st4s erstellen</button>
     <span class="status" id="exportStatus"></span>
     <div class="hint">Import in Stage Traxx: More Options → Import ST4 Files</div>
+  </section>
+
+  <!-- Optimieren-Modus -->
+  <section class="opt-only">
+    <h2>ST4-Datei laden</h2>
+    <div class="drop" id="optDrop">.st4s-Datei hierher ziehen oder klicken<br>
+      <span class="hint">Bestehendes Archiv analysieren und verbessern</span></div>
+    <input type="file" id="optFile" accept=".st4s,.zip" hidden>
+    <div class="hint" id="optInfo"></div>
+    <div style="margin-top:12px"><button id="btnAutoOpt" style="display:none">Alle Songs automatisch optimieren</button>
+      <span class="status" id="autoOptStatus"></span></div>
+  </section>
+  <div id="optSongs" class="opt-only"></div>
+  <section class="opt-only" id="optExportSec" style="display:none">
+    <h2>Export</h2>
+    <button class="primary" id="btnOptExport">Optimierte .st4s erstellen</button>
+    <span class="status" id="optExportStatus"></span>
+    <div class="hint">Alle Audio-Dateien werden unverändert übernommen, nur die Song-Daten
+      (<code>share_data.json</code>) werden aktualisiert.</div>
   </section>
 
   <footer>ST4 Studio · Format reverse-engineered aus Stage Traxx 4.0.17 · keine Gewähr bei App-Updates</footer>
@@ -183,7 +225,20 @@ const CSS_COLORS = {0:"#9e9e9e",1:"#e05d5d",2:"#e0a44d",3:"#e0d34d",4:"#4caf7d",
 const uuid = () => crypto.randomUUID().toUpperCase();
 const nowIso = () => new Date().toISOString().replace(/\.\d{3}Z$/, "Z");
 const fmtTime = s => `${Math.floor(s/60)}:${String((s%60).toFixed(1)).padStart(4,"0")}`;
-const setStatus = (el, msg, cls) => { el.textContent = msg; el.className = "status " + (cls||""); };
+const setStatus = (el, msg, cls) => {
+  el.textContent = msg;
+  el.classList.remove("ok", "warn");
+  if (cls) el.classList.add(cls);
+};
+
+// ---------- Modus-Umschalter (Erstellen / Optimieren) ----------
+function setMode(optimize) {
+  document.body.classList.toggle("optimize", optimize);
+  $("tabCreate").classList.toggle("active", !optimize);
+  $("tabOptimize").classList.toggle("active", optimize);
+}
+$("tabCreate").addEventListener("click", () => setMode(false));
+$("tabOptimize").addEventListener("click", () => setMode(true));
 
 // ---------- Band-Toggle ----------
 $("bandSong").addEventListener("change", e => {
@@ -431,31 +486,101 @@ function renderRegionTable() {
 const hexA = c => (CSS_COLORS[c] || "#9e9e9e") + "40";
 
 // ---------- 3. Click-Generator ----------
-$("btnClick").addEventListener("click", () => {
+// units: Klicks pro Takt · div: Klicks pro BPM-Schlag · accents: betonte Positionen ·
+// cue: Positionen im letzten Takt, auf denen die Ansage zählt (1, 2, …)
+const METERS = {
+  "2/4":  { units: 2,  div: 1, accents: [0],       cue: [0,1] },
+  "3/4":  { units: 3,  div: 1, accents: [0],       cue: [0,1,2] },
+  "4/4":  { units: 4,  div: 1, accents: [0],       cue: [0,1,2,3] },
+  "5/4":  { units: 5,  div: 1, accents: [0,3],     cue: [0,1,2,3,4] },
+  "6/8":  { units: 6,  div: 3, accents: [0,3],     cue: [0,3] },
+  "7/8":  { units: 7,  div: 2, accents: [0,2,4],   cue: [0,2,4] },
+  "9/8":  { units: 9,  div: 3, accents: [0,3,6],   cue: [0,3,6] },
+  "12/8": { units: 12, div: 3, accents: [0,3,6,9], cue: [0,3,6,9] },
+};
+const METER_HINTS = {
+  "6/8":  "6/8: BPM = punktierte Viertel (2 Schläge pro Takt, Achtel-Unterteilung)",
+  "7/8":  "7/8: BPM = Viertel · Achtel-Gruppierung 2+2+3",
+  "9/8":  "9/8: BPM = punktierte Viertel (3 Schläge pro Takt)",
+  "12/8": "12/8: BPM = punktierte Viertel (4 Schläge pro Takt)",
+};
+$("clickMeter").addEventListener("change", () =>
+  $("meterHint").textContent = METER_HINTS[$("clickMeter").value] || "");
+
+// Cue-Ansage: eingebettete Sprach-Samples (Zahlen 1–5, Deutsch/Englisch)
+// Gesprochene Zahlen 1–5 (espeak-ng, MP3 32 kbit/s mono) für die Cue-Ansage
+const CUE_SAMPLES = {
+  de: [
+    "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",
+  ],
+  en: [
+    "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",
+  ],
+};
+const cueCache = {};
+async function getCueVoices(lang) {
+  if (cueCache[lang]) return cueCache[lang];
+  const ac = new AudioContext({ sampleRate: SAMPLE_RATE });
+  const voices = [];
+  for (const b64 of CUE_SAMPLES[lang]) {
+    const bytes = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
+    const buf = await ac.decodeAudioData(bytes.buffer);
+    voices.push(buf.getChannelData(0).slice());
+  }
+  ac.close();
+  return cueCache[lang] = voices;
+}
+
+$("btnClick").addEventListener("click", async () => {
   const bpm = +$("bpm").value;
   if (!bpm) { setStatus($("clickStatus"), "BPM fehlt", "warn"); return; }
   const bars = +$("clickBars").value;
-  const beatsPerBar = +$("clickMeter").value.split("/")[0];
+  const meterName = $("clickMeter").value;
+  const meter = METERS[meterName];
   const offset = +$("clickOffset").value || 0;
-  const beatDur = 60 / bpm;
-  const total = offset + bars * beatsPerBar * beatDur + 0.3;
+  const unitDur = 60 / bpm / meter.div;
+  const cueOn = $("cueVoice").checked;
+  const totalUnits = bars * meter.units;
+  const total = offset + totalUnits * unitDur + (cueOn ? 0.8 : 0.3);
   const n = Math.ceil(total * SAMPLE_RATE);
   const data = new Float32Array(n);
-  for (let b = 0; b < bars * beatsPerBar; b++) {
-    const accent = b % beatsPerBar === 0;
+  const lastBarStart = (bars - 1) * meter.units;
+  for (let b = 0; b < totalUnits; b++) {
+    const accent = meter.accents.includes(b % meter.units);
+    // Im Cue-Takt treten die Beeps hinter die Stimme zurück
+    const gain = (accent ? 0.9 : 0.6) * (cueOn && b >= lastBarStart ? 0.35 : 1);
     const freq = accent ? 1318.5 : 880;          // E6 / A5
-    const t0 = Math.floor((offset + b * beatDur) * SAMPLE_RATE);
+    const t0 = Math.floor((offset + b * unitDur) * SAMPLE_RATE);
     const dur = Math.floor(0.06 * SAMPLE_RATE);
     for (let i = 0; i < dur && t0 + i < n; i++) {
       const env = Math.exp(-i / (SAMPLE_RATE * 0.012));
-      data[t0+i] = Math.sin(2 * Math.PI * freq * i / SAMPLE_RATE) * env * (accent ? 0.9 : 0.6);
+      data[t0+i] += Math.sin(2 * Math.PI * freq * i / SAMPLE_RATE) * env * gain;
     }
+  }
+  if (cueOn) {
+    try {
+      const voices = await getCueVoices($("cueLang").value);
+      meter.cue.forEach((u, idx) => {
+        const t0 = Math.floor((offset + (lastBarStart + u) * unitDur) * SAMPLE_RATE);
+        const v = voices[idx];
+        for (let i = 0; i < v.length && t0 + i < n; i++) data[t0+i] += v[i] * 0.9;
+      });
+    } catch (e) { setStatus($("clickStatus"), "Cue-Fehler: " + e.message, "warn"); return; }
   }
   clickBlob = encodeWav(data, SAMPLE_RATE);
   clickCustomFile = null; $("clickFile").value = "";
   $("clickPreview").src = URL.createObjectURL(clickBlob);
   $("clickPreview").style.display = "block";
-  setStatus($("clickStatus"), `✓ ${bars} Takte ${$("clickMeter").value} @ ${bpm} BPM`, "ok");
+  setStatus($("clickStatus"),
+    `✓ ${bars} Takte ${meterName} @ ${bpm} BPM${cueOn ? " · mit Ansage" : ""}`, "ok");
 });
 $("clickFile").addEventListener("change", e => {
   clickCustomFile = e.target.files[0] || null;
@@ -477,26 +602,230 @@ function encodeWav(samples, sr) {
 }
 
 // ---------- 4. Lyrics via lrclib ----------
+async function searchLyrics(artist, title, duration) {
+  let d = null;
+  const p = new URLSearchParams({ artist_name: artist, track_name: title });
+  if (duration) p.set("duration", Math.round(duration));
+  let r = await fetchT("https://lrclib.net/api/get?" + p);
+  if (r.ok) d = await r.json();
+  if (!d || !(d.syncedLyrics || d.plainLyrics)) {
+    r = await fetchT("https://lrclib.net/api/search?q=" + encodeURIComponent(artist + " " + title));
+    const list = await r.json();
+    d = list.find(x => x.syncedLyrics) || list[0] || null;
+  }
+  if (d && (d.syncedLyrics || d.plainLyrics))
+    return { text: d.syncedLyrics || d.plainLyrics, synced: !!d.syncedLyrics };
+  return null;
+}
+
 $("btnLyrics").addEventListener("click", async () => {
   const artist = $("artist").value.trim(), title = $("title").value.trim();
   if (!artist || !title) { setStatus($("lyricsStatus"), "Titel + Artist nötig", "warn"); return; }
   setStatus($("lyricsStatus"), "…");
   try {
-    let d = null;
-    const p = new URLSearchParams({ artist_name: artist, track_name: title });
-    if (audioBuffer) p.set("duration", Math.round(audioBuffer.duration));
-    let r = await fetchT("https://lrclib.net/api/get?" + p);
-    if (r.ok) d = await r.json();
-    if (!d) {
-      r = await fetchT("https://lrclib.net/api/search?q=" + encodeURIComponent(artist + " " + title));
-      const list = await r.json();
-      d = list.find(x => x.syncedLyrics) || list[0] || null;
-    }
-    if (d && (d.syncedLyrics || d.plainLyrics)) {
-      $("lyrics").value = d.syncedLyrics || d.plainLyrics;
-      setStatus($("lyricsStatus"), d.syncedLyrics ? "✓ synchronisiert (LRC)" : "✓ nur Text", "ok");
+    const res = await searchLyrics(artist, title, audioBuffer ? audioBuffer.duration : 0);
+    if (res) {
+      $("lyrics").value = res.text;
+      setStatus($("lyricsStatus"), res.synced ? "✓ synchronisiert (LRC)" : "✓ nur Text", "ok");
     } else setStatus($("lyricsStatus"), "nichts gefunden", "warn");
   } catch (e) { setStatus($("lyricsStatus"), "Fehler: " + e.message, "warn"); }
+});
+
+// ---------- Optimieren-Modus ----------
+let optZip = null, optData = null, optName = "";
+const optCards = []; // { song, sec }
+
+const hasSync = t => /\[\d{1,2}:\d{2}/.test(t || "");
+// Entfernt typische Reste wie "(Official Video)" oder "- Topic"
+function cleanMeta(s) {
+  return (s || "")
+    .replace(/\s*[\(\[][^\)\]]*(official|video|audio|lyric|remaster|hd|4k)[^\)\]]*[\)\]]/gi, "")
+    .replace(/\s*-\s*Topic$/i, "")
+    .replace(/\s{2,}/g, " ").trim();
+}
+
+$("optDrop").addEventListener("click", () => $("optFile").click());
+$("optDrop").addEventListener("dragover", e => { e.preventDefault(); $("optDrop").classList.add("over"); });
+$("optDrop").addEventListener("dragleave", () => $("optDrop").classList.remove("over"));
+$("optDrop").addEventListener("drop", e => {
+  e.preventDefault(); $("optDrop").classList.remove("over");
+  if (e.dataTransfer.files[0]) loadSt4s(e.dataTransfer.files[0]);
+});
+$("optFile").addEventListener("change", e => { if (e.target.files[0]) loadSt4s(e.target.files[0]); });
+
+async function loadSt4s(file) {
+  $("optInfo").textContent = "lade …";
+  try {
+    optName = file.name.replace(/\.(st4s|zip)$/i, "");
+    optZip = await JSZip.loadAsync(file);
+    const entry = optZip.file("share_data.json");
+    if (!entry) throw new Error("share_data.json fehlt — keine gültige .st4s-Datei");
+    optData = JSON.parse(await entry.async("string"));
+    if (!optData.songs || !optData.songs.length) throw new Error("keine Songs im Archiv");
+    $("optDrop").classList.add("loaded");
+    $("optDrop").innerHTML = "📦 " + file.name;
+    $("optInfo").textContent =
+      `${optData.songs.length} Song(s) · ${(optData.tracks || []).length} Track(s) · Version ${(optData.metadata && optData.metadata.version) || "?"}`;
+    renderOptCards();
+    $("btnAutoOpt").style.display = "";
+    setStatus($("autoOptStatus"), "");
+    $("optExportSec").style.display = "";
+    setStatus($("optExportStatus"), "");
+  } catch (e) { $("optInfo").textContent = "Fehler: " + e.message; }
+}
+
+function renderOptCards() {
+  const wrap = $("optSongs");
+  wrap.innerHTML = "";
+  optCards.length = 0;
+  for (const song of optData.songs) {
+    const tracks = (optData.tracks || []).filter(t => t.songID === song.id);
+    const regions = (optData.regions || []).filter(r => r.songID === song.id);
+    const sec = document.createElement("section");
+    sec.innerHTML = `
+      <h2></h2>
+      <div class="diags"></div>
+      <div class="row" style="margin-top:10px">
+        <div><label>Titel</label><input type="text" class="fTitle"></div>
+        <div><label>Artist</label><input type="text" class="fArtist"></div>
+        <div style="flex:0; min-width:100px"><label>BPM</label><input type="number" class="fBpm" min="0" max="300"></div>
+      </div>
+      <div class="row" style="margin-top:10px">
+        <div style="flex:0"><button class="bClean small">Metadaten aufräumen</button></div>
+        <div style="flex:0"><button class="bBpm small">BPM schätzen</button><span class="status sBpm"></span></div>
+        <div style="flex:0"><button class="bLyr small">Lyrics suchen (lrclib.net)</button><span class="status sLyr"></span></div>
+      </div>
+      <label>Lyrics (werden so exportiert)</label>
+      <textarea class="fLyrics"></textarea>
+      <div class="proposal" style="display:none">
+        <div class="hint pHint"></div>
+        <textarea class="pText" style="min-height:120px"></textarea>
+        <div style="margin-top:8px"><button class="bApply small">Vorschlag übernehmen</button>
+          <button class="bDismiss small">Verwerfen</button></div>
+      </div>`;
+    const q = sel => sec.querySelector(sel);
+    q("h2").textContent = `${song.title || "(ohne Titel)"} — ${song.artist || "(ohne Artist)"}`;
+    q(".fTitle").value = song.title || "";
+    q(".fArtist").value = song.artist || "";
+    q(".fBpm").value = song.bpm || "";
+    q(".fLyrics").value = song.lyrics || "";
+    // Diagnose
+    const diags = q(".diags");
+    const addDiag = (msg, cls) => {
+      const d = document.createElement("div");
+      d.className = "diag " + (cls || ""); d.textContent = msg; diags.appendChild(d);
+    };
+    if (!song.lyrics) addDiag("✗ Keine Lyrics", "warn");
+    else if (hasSync(song.lyrics)) addDiag("✓ Lyrics mit Timecodes", "ok");
+    else addDiag("△ Lyrics ohne Timecodes — Upgrade auf LRC möglich", "warn");
+    if (song.bpm) addDiag(`✓ ${song.bpm} BPM`, "ok");
+    else addDiag("✗ BPM fehlt", "warn");
+    addDiag(`${tracks.length} Track(s) · ${regions.length} Region(en) · Dauer ${fmtTime(song.duration || 0)}`);
+    // Aktionen
+    q(".bClean").addEventListener("click", () => {
+      q(".fTitle").value = cleanMeta(q(".fTitle").value);
+      q(".fArtist").value = cleanMeta(q(".fArtist").value);
+    });
+    q(".bBpm").addEventListener("click", () => estimateBpm(sec, song));
+    q(".bLyr").addEventListener("click", () => findLyrics(sec, song));
+    q(".bApply").addEventListener("click", () => {
+      q(".fLyrics").value = q(".pText").value;
+      q(".proposal").style.display = "none";
+      setStatus(q(".sLyr"), "✓ übernommen", "ok");
+    });
+    q(".bDismiss").addEventListener("click", () => {
+      q(".proposal").style.display = "none";
+      setStatus(q(".sLyr"), "");
+    });
+    wrap.appendChild(sec);
+    optCards.push({ song, sec });
+  }
+}
+
+async function estimateBpm(sec, song) {
+  const q = sel => sec.querySelector(sel);
+  setStatus(q(".sBpm"), "…");
+  try {
+    const tr = (optData.tracks || []).filter(t => t.songID === song.id)
+      .sort((a, b) => a.number - b.number)[0];
+    if (!tr) throw new Error("kein Track");
+    const f = optZip.file(tr.filePath);
+    if (!f) throw new Error("Audio fehlt im Archiv: " + tr.filePath);
+    const ac = new AudioContext({ sampleRate: SAMPLE_RATE });
+    const buf = await ac.decodeAudioData(await f.async("arraybuffer"));
+    ac.close();
+    const bpm = detectBPM(buf);
+    if (!bpm) throw new Error("keine verlässliche Schätzung");
+    q(".fBpm").value = bpm;
+    setStatus(q(".sBpm"), `✓ ${bpm} BPM (bitte prüfen)`, "ok");
+    return true;
+  } catch (e) { setStatus(q(".sBpm"), e.message, "warn"); return false; }
+}
+
+async function findLyrics(sec, song) {
+  const q = sel => sec.querySelector(sel);
+  const artist = q(".fArtist").value.trim(), title = q(".fTitle").value.trim();
+  if (!artist || !title) { setStatus(q(".sLyr"), "Titel + Artist nötig", "warn"); return false; }
+  setStatus(q(".sLyr"), "…");
+  try {
+    const res = await searchLyrics(artist, title, song.duration);
+    if (!res) { setStatus(q(".sLyr"), "nichts gefunden", "warn"); return false; }
+    const current = q(".fLyrics").value.trim();
+    if (!current) {
+      // Nichts vorhanden → direkt übernehmen
+      q(".fLyrics").value = res.text;
+      setStatus(q(".sLyr"), res.synced ? "✓ synchronisiert (LRC)" : "✓ nur Text", "ok");
+    } else {
+      // Vorhandene Lyrics nie ungefragt überschreiben → Vorschlag anzeigen
+      q(".pHint").textContent = "Gefunden: " + (res.synced ? "Lyrics mit LRC-Timecodes" : "Lyrics ohne Timecodes")
+        + " — aktuelle Lyrics bleiben unverändert, bis du den Vorschlag übernimmst.";
+      q(".pText").value = res.text;
+      q(".proposal").style.display = "";
+      setStatus(q(".sLyr"), "Vorschlag prüfen ↓", "warn");
+    }
+    return true;
+  } catch (e) { setStatus(q(".sLyr"), "Fehler: " + e.message, "warn"); return false; }
+}
+
+$("btnAutoOpt").addEventListener("click", async () => {
+  let done = 0;
+  for (const { song, sec } of optCards) {
+    const q = sel => sec.querySelector(sel);
+    setStatus($("autoOptStatus"), `… ${q(".fTitle").value || "Song"}`);
+    q(".fTitle").value = cleanMeta(q(".fTitle").value);
+    q(".fArtist").value = cleanMeta(q(".fArtist").value);
+    if (!+q(".fBpm").value) await estimateBpm(sec, song);
+    // Lyrics nur suchen, wenn keine synchronisierten vorhanden sind
+    if (!hasSync(q(".fLyrics").value)) await findLyrics(sec, song);
+    done++;
+  }
+  setStatus($("autoOptStatus"), `✓ ${done} Song(s) geprüft — Ergebnisse unten kontrollieren`, "ok");
+});
+
+$("btnOptExport").addEventListener("click", async () => {
+  if (!optZip || !optData) return;
+  setStatus($("optExportStatus"), "erstelle …");
+  const ts = nowIso();
+  let changed = 0;
+  for (const { song, sec } of optCards) {
+    const q = sel => sec.querySelector(sel);
+    const nt = q(".fTitle").value.trim(), na = q(".fArtist").value.trim();
+    const nb = +q(".fBpm").value || 0, nl = q(".fLyrics").value.trim();
+    if (nt !== (song.title || "") || na !== (song.artist || "")
+        || nb !== (song.bpm || 0) || nl !== (song.lyrics || "")) {
+      song.title = nt; song.artist = na; song.bpm = nb;
+      if (nl) song.lyrics = nl; else delete song.lyrics;
+      song.lastModified = ts;
+      changed++;
+    }
+  }
+  optZip.file("share_data.json", JSON.stringify(optData));
+  const blob = await optZip.generateAsync({ type: "blob", compression: "DEFLATE" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `${optName}_optimiert.st4s`;
+  a.click();
+  setStatus($("optExportStatus"), `✓ ${optName}_optimiert.st4s · ${changed} Song(s) geändert`, "ok");
 });
 
 // ---------- Export ----------
