@@ -89,6 +89,9 @@
   body.clicktrack .ct-hide { display: none !important; }
   .diag { font-size: 0.85rem; margin: 2px 0; color: var(--muted); }
   .diag.ok { color: var(--ok); } .diag.warn { color: var(--warn); }
+  details.opt-click { border: 1px solid var(--border); border-radius: 0.6rem;
+    padding: 0.6rem 0.9rem; margin-top: 10px; background: var(--output-bg); }
+  details.opt-click summary { cursor: pointer; font-size: 0.9rem; font-weight: 600; }
   .proposal { border: 1px solid var(--accent); border-radius: 0.6rem;
     padding: 0.7rem; margin-top: 10px; background: var(--output-bg); }
   footer { color: var(--muted); font-size: 0.8rem; margin-top: 1.6rem; text-align: center; }
@@ -271,6 +274,12 @@ const CSS_COLORS = {0:"#9e9e9e",1:"#e05d5d",2:"#e0a44d",3:"#e0d34d",4:"#4caf7d",
   5:"#4dc8c8",6:"#4d9de0",7:"#a06de0",8:"#e06dbe"};
 
 const uuid = () => crypto.randomUUID().toUpperCase();
+// Neutraler 4-Band-EQ, wie ihn Stage Traxx für jeden Track erwartet
+const eq = () => ({ bypass: false, bands: [
+  { freq: 100, bw: 1, type: 1, label: "LO", gain: 0 },
+  { freq: 500, bw: 1, type: 0, label: "LM", gain: 0 },
+  { freq: 2000, bw: 2, type: 0, label: "HM", gain: 0 },
+  { freq: 10000, bw: 1, type: 2, label: "HI", gain: 0 }] });
 const nowIso = () => new Date().toISOString().replace(/\.\d{3}Z$/, "Z");
 const fmtTime = s => `${Math.floor(s/60)}:${String((s%60).toFixed(1)).padStart(4,"0")}`;
 const setStatus = (el, msg, cls) => {
@@ -610,23 +619,15 @@ async function getCueVoices() {
   return cueVoiceCache = voices;
 }
 
-let lastClickMeta = null; // { bpm, bars, meterName } für den Download-Dateinamen
-$("btnClick").addEventListener("click", async () => {
-  const standalone = document.body.classList.contains("clicktrack");
-  const bpm = +(standalone ? $("ctBpm") : $("bpm")).value;
-  if (!bpm) { setStatus($("clickStatus"), "BPM fehlt", "warn"); return; }
-  const bars = +$("clickBars").value;
-  const meterName = $("clickMeter").value;
+// Erzeugt den Click als WAV-Blob — genutzt vom Erstellen-Tab, Standalone-Tab
+// und dem „Click-Track hinzufügen“-Bereich im Optimieren-Modus
+async function renderClick({ bpm, bars, meterName, offset, cueOn, clickVol, cueVol }) {
   const meter = METERS[meterName];
-  const offset = +$("clickOffset").value || 0;
   const unitDur = 60 / bpm / meter.div;
-  const cueOn = $("cueVoice").checked;
   const totalUnits = bars * meter.units;
   const total = offset + totalUnits * unitDur + (cueOn ? 0.8 : 0.3);
   const n = Math.ceil(total * SAMPLE_RATE);
   const data = new Float32Array(n);
-  const clickVol = +$("clickVol").value / 100;
-  const cueVol = +$("cueVol").value / 100;
   const lastBarStart = (bars - 1) * meter.units;
   for (let b = 0; b < totalUnits; b++) {
     const accent = meter.accents.includes(b % meter.units);
@@ -641,20 +642,34 @@ $("btnClick").addEventListener("click", async () => {
     }
   }
   if (cueOn) {
-    try {
-      const voices = await getCueVoices();
-      meter.cue.forEach((u, idx) => {
-        const t0 = Math.floor((offset + (lastBarStart + u) * unitDur) * SAMPLE_RATE);
-        const v = voices[idx];
-        for (let i = 0; i < v.length && t0 + i < n; i++) data[t0+i] += v[i] * 0.9 * cueVol;
-      });
-    } catch (e) { setStatus($("clickStatus"), "Cue-Fehler: " + e.message, "warn"); return; }
+    const voices = await getCueVoices();
+    meter.cue.forEach((u, idx) => {
+      const t0 = Math.floor((offset + (lastBarStart + u) * unitDur) * SAMPLE_RATE);
+      const v = voices[idx];
+      for (let i = 0; i < v.length && t0 + i < n; i++) data[t0+i] += v[i] * 0.9 * cueVol;
+    });
   }
   // Übersteuerungsschutz: bei Summen-Peaks über 0 dBFS gesamt herunterregeln
   let peak = 0;
   for (let i = 0; i < n; i++) peak = Math.max(peak, Math.abs(data[i]));
   if (peak > 0.99) { const s = 0.99 / peak; for (let i = 0; i < n; i++) data[i] *= s; }
-  clickBlob = encodeWav(data, SAMPLE_RATE);
+  return { blob: encodeWav(data, SAMPLE_RATE), duration: n / SAMPLE_RATE };
+}
+
+let lastClickMeta = null; // { bpm, bars, meterName } für den Download-Dateinamen
+$("btnClick").addEventListener("click", async () => {
+  const standalone = document.body.classList.contains("clicktrack");
+  const bpm = +(standalone ? $("ctBpm") : $("bpm")).value;
+  if (!bpm) { setStatus($("clickStatus"), "BPM fehlt", "warn"); return; }
+  const bars = +$("clickBars").value;
+  const meterName = $("clickMeter").value;
+  const cueOn = $("cueVoice").checked;
+  try {
+    const res = await renderClick({ bpm, bars, meterName,
+      offset: +$("clickOffset").value || 0, cueOn,
+      clickVol: +$("clickVol").value / 100, cueVol: +$("cueVol").value / 100 });
+    clickBlob = res.blob;
+  } catch (e) { setStatus($("clickStatus"), "Cue-Fehler: " + e.message, "warn"); return; }
   lastClickMeta = { bpm, bars, meterName };
   clickCustomFile = null; $("clickFile").value = "";
   $("clickPreview").src = URL.createObjectURL(clickBlob);
@@ -784,6 +799,35 @@ function renderOptCards() {
         <div style="flex:0"><button class="bBpm small">BPM schätzen</button><span class="status sBpm"></span></div>
         <div style="flex:0"><button class="bLyr small">Lyrics suchen (lrclib.net)</button><span class="status sLyr"></span></div>
       </div>
+      <details class="opt-click">
+        <summary>Click-Track hinzufügen</summary>
+        <div class="hint" style="margin-top:4px">Erzeugt einen Einzähler-Click im Song-BPM und hängt ihn
+          beim Export als neuen Track (Mutegroup 2, ohne Transposition) an — alles andere bleibt unverändert.</div>
+        <div class="row" style="margin-top:8px">
+          <div><label>Takte</label><select class="cBars">
+            <option>1</option><option selected>2</option><option>4</option><option>8</option>
+            <option>16</option><option>32</option><option>64</option>
+          </select></div>
+          <div><label>Taktart</label><select class="cMeter">
+            <option>2/4</option><option>3/4</option><option selected>4/4</option><option>5/4</option>
+            <option>6/8</option><option>7/8</option><option>9/8</option><option>12/8</option>
+          </select></div>
+          <div><label>Start bei (Sek.)</label><input type="number" class="cOffset" value="0" min="0" step="0.1"></div>
+        </div>
+        <div class="row" style="margin-top:6px">
+          <div><label>Click-Lautstärke: <span class="cClickVolVal">100 %</span></label>
+            <input type="range" class="cClickVol" min="0" max="100" value="100"></div>
+          <div><label>Ansage-Lautstärke: <span class="cCueVolVal">100 %</span></label>
+            <input type="range" class="cCueVol" min="0" max="150" value="100"></div>
+        </div>
+        <label class="toggle"><input type="checkbox" class="cCue">
+          <strong>Cue-Ansage</strong>
+          <span class="hint" style="margin:0">letzter Takt wird angezählt</span></label>
+        <div style="margin-top:8px"><button class="bClickGen small">Click erzeugen</button>
+          <button class="bClickRemove small" style="display:none">Entfernen</button>
+          <span class="status sClick"></span></div>
+        <audio class="cPreview" controls style="width:100%; margin-top:8px; display:none"></audio>
+      </details>
       <label>Lyrics (werden so exportiert)</label>
       <textarea class="fLyrics"></textarea>
       <div class="proposal" style="display:none">
@@ -809,6 +853,9 @@ function renderOptCards() {
     else addDiag("△ Lyrics ohne Timecodes — Upgrade auf LRC möglich", "warn");
     if (song.bpm) addDiag(`✓ ${song.bpm} BPM`, "ok");
     else addDiag("✗ BPM fehlt", "warn");
+    const hasClick = tracks.some(t => /click/i.test(t.name || "") || t.muteGroupMask === 2);
+    if (hasClick) addDiag("✓ Click-Track vorhanden", "ok");
+    else addDiag("✗ Kein Click-Track — unten hinzufügen möglich", "warn");
     addDiag(`${tracks.length} Track(s) · ${regions.length} Region(en) · Dauer ${fmtTime(song.duration || 0)}`);
     // Aktionen
     q(".bClean").addEventListener("click", () => {
@@ -826,8 +873,37 @@ function renderOptCards() {
       q(".proposal").style.display = "none";
       setStatus(q(".sLyr"), "");
     });
+    // Click-Track hinzufügen: erzeugter Blob wird erst beim Export angehängt
+    const click = { blob: null, duration: 0 };
+    q(".cClickVol").addEventListener("input", () =>
+      q(".cClickVolVal").textContent = q(".cClickVol").value + " %");
+    q(".cCueVol").addEventListener("input", () =>
+      q(".cCueVolVal").textContent = q(".cCueVol").value + " %");
+    q(".bClickGen").addEventListener("click", async () => {
+      const bpm = +q(".fBpm").value;
+      if (!bpm) { setStatus(q(".sClick"), "BPM fehlt — erst setzen oder schätzen", "warn"); return; }
+      const bars = +q(".cBars").value, meterName = q(".cMeter").value;
+      const cueOn = q(".cCue").checked;
+      try {
+        const res = await renderClick({ bpm, bars, meterName,
+          offset: +q(".cOffset").value || 0, cueOn,
+          clickVol: +q(".cClickVol").value / 100, cueVol: +q(".cCueVol").value / 100 });
+        click.blob = res.blob; click.duration = res.duration;
+        q(".cPreview").src = URL.createObjectURL(res.blob);
+        q(".cPreview").style.display = "block";
+        q(".bClickRemove").style.display = "";
+        setStatus(q(".sClick"),
+          `✓ ${bars} Takte ${meterName} @ ${bpm} BPM${cueOn ? " · mit Ansage" : ""} — wird beim Export angehängt`, "ok");
+      } catch (e) { setStatus(q(".sClick"), "Fehler: " + e.message, "warn"); }
+    });
+    q(".bClickRemove").addEventListener("click", () => {
+      click.blob = null; click.duration = 0;
+      q(".cPreview").style.display = "none";
+      q(".bClickRemove").style.display = "none";
+      setStatus(q(".sClick"), "");
+    });
     wrap.appendChild(sec);
-    optCards.push({ song, sec });
+    optCards.push({ song, sec, click });
   }
 }
 
@@ -895,8 +971,8 @@ $("btnOptExport").addEventListener("click", async () => {
   if (!optZip || !optData) return;
   setStatus($("optExportStatus"), "erstelle …");
   const ts = nowIso();
-  let changed = 0;
-  for (const { song, sec } of optCards) {
+  let changed = 0, clicksAdded = 0;
+  for (const { song, sec, click } of optCards) {
     const q = sel => sec.querySelector(sel);
     const nt = q(".fTitle").value.trim(), na = q(".fArtist").value.trim();
     const nb = +q(".fBpm").value || 0, nl = q(".fLyrics").value.trim();
@@ -907,6 +983,31 @@ $("btnOptExport").addEventListener("click", async () => {
       song.lastModified = ts;
       changed++;
     }
+    if (click && click.blob) {
+      // Neuen Click-Track anhängen — bestehende Tracks bleiben unangetastet
+      if (!optData.tracks) optData.tracks = [];
+      const songTracks = optData.tracks.filter(t => t.songID === song.id);
+      const maxNum = songTracks.reduce((m, t) => Math.max(m, t.number || 0), 0);
+      // Ordner aus vorhandenem Track ableiten, sonst neu aus Titel + Kurz-ID
+      const fp = songTracks[0] && songTracks[0].filePath;
+      const folder = fp && fp.includes("/") ? fp.slice(0, fp.lastIndexOf("/"))
+        : `${song.title}__${(song.id || uuid()).slice(0, 6).toLowerCase()}`;
+      let clickName = "Click.wav", i = 2;
+      while (optZip.file(`${folder}/${clickName}`)) clickName = `Click_${i++}.wav`;
+      optZip.file(`${folder}/${clickName}`, click.blob);
+      optData.tracks.push({
+        id: uuid(), songID: song.id, name: "Click", number: maxNum + 1,
+        filePath: `${folder}/${clickName}`, duration: song.duration || click.duration,
+        bus: 0, color: 12, volume: 0, pan: 0, mute: false,
+        transpose: false, muteGroupMask: 2, hasMarkers: false,
+        equalizer: eq(), lastModified: ts,
+      });
+      clicksAdded++;
+      // Verbraucht — verhindert doppeltes Anhängen bei erneutem Export
+      click.blob = null;
+      sec.querySelector(".bClickRemove").style.display = "none";
+      setStatus(sec.querySelector(".sClick"), "✓ als Track exportiert", "ok");
+    }
   }
   optZip.file("share_data.json", JSON.stringify(optData));
   const blob = await optZip.generateAsync({ type: "blob", compression: "DEFLATE" });
@@ -914,7 +1015,8 @@ $("btnOptExport").addEventListener("click", async () => {
   a.href = URL.createObjectURL(blob);
   a.download = `${optName}_optimiert.st4s`;
   a.click();
-  setStatus($("optExportStatus"), `✓ ${optName}_optimiert.st4s · ${changed} Song(s) geändert`, "ok");
+  setStatus($("optExportStatus"), `✓ ${optName}_optimiert.st4s · ${changed} Song(s) geändert`
+    + (clicksAdded ? ` · ${clicksAdded} Click-Track(s) hinzugefügt` : ""), "ok");
 });
 
 // ---------- Export ----------
@@ -945,12 +1047,6 @@ $("btnExport").addEventListener("click", async () => {
     added: ts, lastModified: ts,
   };
   if (lyrics) song.lyrics = lyrics;
-
-  const eq = () => ({ bypass: false, bands: [
-    { freq: 100, bw: 1, type: 1, label: "LO", gain: 0 },
-    { freq: 500, bw: 1, type: 0, label: "LM", gain: 0 },
-    { freq: 2000, bw: 2, type: 0, label: "HM", gain: 0 },
-    { freq: 10000, bw: 1, type: 2, label: "HI", gain: 0 }] });
 
   const tracks = [{
     id: uuid(), songID: songId, name: "Original", number: 1,
