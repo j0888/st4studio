@@ -865,9 +865,15 @@ function renderOptCards() {
     q(".bBpm").addEventListener("click", () => estimateBpm(sec, song));
     q(".bLyr").addEventListener("click", () => findLyrics(sec, song));
     q(".bApply").addEventListener("click", () => {
-      q(".fLyrics").value = q(".pText").value;
+      // MIDI-Befehle (z. B. „[midi: CC47.0@1]“) aus den alten Lyrics beibehalten
+      const oldMidi = q(".fLyrics").value.split(/\r?\n/).filter(l => /^\s*\[midi:/i.test(l));
+      let txt = q(".pText").value;
+      if (oldMidi.length && !/^\s*\[midi:/im.test(txt))
+        txt = oldMidi.join("\n") + "\n" + txt;
+      q(".fLyrics").value = txt;
       q(".proposal").style.display = "none";
-      setStatus(q(".sLyr"), "✓ übernommen", "ok");
+      setStatus(q(".sLyr"), oldMidi.length
+        ? "✓ übernommen · MIDI-Befehle beibehalten" : "✓ übernommen", "ok");
     });
     q(".bDismiss").addEventListener("click", () => {
       q(".proposal").style.display = "none";
@@ -969,6 +975,16 @@ $("btnAutoOpt").addEventListener("click", async () => {
 
 $("btnOptExport").addEventListener("click", async () => {
   if (!optZip || !optData) return;
+  // Offene Lyrics-Vorschläge blockieren den Export — sonst ginge der neue Text
+  // stillschweigend verloren (es würde der alte Stand exportiert)
+  const open = optCards.find(({ sec }) =>
+    sec.querySelector(".proposal").style.display !== "none");
+  if (open) {
+    setStatus($("optExportStatus"),
+      `Offener Lyrics-Vorschlag bei „${open.sec.querySelector(".fTitle").value || "Song"}“ — bitte erst übernehmen oder verwerfen`, "warn");
+    open.sec.scrollIntoView({ behavior: "smooth", block: "center" });
+    return;
+  }
   setStatus($("optExportStatus"), "erstelle …");
   const ts = nowIso();
   let changed = 0, clicksAdded = 0;
