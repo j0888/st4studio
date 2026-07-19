@@ -72,6 +72,9 @@
     background: var(--output-bg); border: 1px solid var(--border);
     padding: 0.6rem 0.9rem; border-radius: 0.6rem; cursor: pointer; }
   .toggle input { width: 18px; height: 18px; accent-color: var(--accent); }
+  input[type=range] { padding: 0; border: none; background: transparent;
+    accent-color: var(--accent); }
+  input[type=range]:focus { outline: none; }
   .tabs { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 1rem; }
   .tabs button { flex: 1 1 auto; }
   .tabs button.active { background: var(--accent); border-color: var(--accent);
@@ -166,6 +169,12 @@
       <div style="align-self:end"><button id="btnClick">Click erzeugen</button><span class="status" id="clickStatus"></span></div>
     </div>
     <div class="hint" id="meterHint"></div>
+    <div class="row" style="margin-top:6px">
+      <div><label>Click-Lautstärke: <span id="clickVolVal">100 %</span></label>
+        <input type="range" id="clickVol" min="0" max="100" value="100"></div>
+      <div><label>Ansage-Lautstärke: <span id="cueVolVal">100 %</span></label>
+        <input type="range" id="cueVol" min="0" max="150" value="100"></div>
+    </div>
     <label class="toggle" style="margin-top:10px"><input type="checkbox" id="cueVoice">
       <strong>Cue-Ansage</strong>
       <span class="hint" style="margin:0">letzter Takt wird angezählt („one, two, three, four“)</span>
@@ -561,6 +570,10 @@ const METER_HINTS = {
 };
 $("clickMeter").addEventListener("change", () =>
   $("meterHint").textContent = METER_HINTS[$("clickMeter").value] || "");
+$("clickVol").addEventListener("input", () =>
+  $("clickVolVal").textContent = $("clickVol").value + " %");
+$("cueVol").addEventListener("input", () =>
+  $("cueVolVal").textContent = $("cueVol").value + " %");
 
 // Cue-Ansage: eingebettete Sprach-Samples (English Female, „one“ bis „six“)
 // Base64-MP3s, Index 0 = „one“, 1 = „two“, … („six“ derzeit ungenutzte Reserve)
@@ -572,6 +585,17 @@ const CUE_SAMPLES = [
   "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jNXoAQ5JwOk5dVvvVpV2Mqhf9P0dDUMhka/W37ODGlag0wlLC7mlc9u1Nzy/iVyF1YapaYdmWS2AOj4UmAQk1FIC0Ui6OoLhakiVy77PzS4CgNL/aVVErgQr/DJw1UpsbH9gEAwSndYs8VEo//s4xHKACuDBc+SMUpFIna58kwkyw9h3+G1gIKPg089lqMRc6JWkh+dV4dBawBJBg/7kWS1HFkSrOqkgYDCZmZ8igEWiRRJHmEcq5JmAo3/BRLAJmbUpW6kAm3m/ZDKxTLVjTGyoKUszdvp9RIUV6Sn+l2W5RXlH/wKBVWqQKEQYrEpAaVnDpFBWQ6iOP6n56z/F/+PSd+z/Z/9H57V+VUxBTUUzLjEwMFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV//s4xH8ACjCVW+MYZ8E/H6akYYrJVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVMQU1FMy4xMDBVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV//s4xI+DxHgDH6CEYCAAADSAAAAEVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV//s4xJ4DwAABpAAAACAAADSAAAAEVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV",
 ];
+// Führende Stille (u. a. MP3-Encoder-Vorlauf) abschneiden, damit die Stimme
+// exakt auf dem Beat sitzt; 3 ms Vorlauf bleiben für den Konsonanten-Attack
+function trimOnset(d) {
+  let peak = 0;
+  for (let i = 0; i < d.length; i++) peak = Math.max(peak, Math.abs(d[i]));
+  const thr = peak * 0.05;
+  let i = 0;
+  while (i < d.length && Math.abs(d[i]) < thr) i++;
+  return d.slice(Math.max(0, i - Math.round(0.003 * SAMPLE_RATE)));
+}
+
 let cueVoiceCache = null;
 async function getCueVoices() {
   if (cueVoiceCache) return cueVoiceCache;
@@ -580,7 +604,7 @@ async function getCueVoices() {
   for (const b64 of CUE_SAMPLES) {
     const bytes = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
     const buf = await ac.decodeAudioData(bytes.buffer);
-    voices.push(buf.getChannelData(0).slice());
+    voices.push(trimOnset(buf.getChannelData(0)));
   }
   ac.close();
   return cueVoiceCache = voices;
@@ -601,11 +625,13 @@ $("btnClick").addEventListener("click", async () => {
   const total = offset + totalUnits * unitDur + (cueOn ? 0.8 : 0.3);
   const n = Math.ceil(total * SAMPLE_RATE);
   const data = new Float32Array(n);
+  const clickVol = +$("clickVol").value / 100;
+  const cueVol = +$("cueVol").value / 100;
   const lastBarStart = (bars - 1) * meter.units;
   for (let b = 0; b < totalUnits; b++) {
     const accent = meter.accents.includes(b % meter.units);
     // Im Cue-Takt treten die Beeps hinter die Stimme zurück
-    const gain = (accent ? 0.9 : 0.6) * (cueOn && b >= lastBarStart ? 0.35 : 1);
+    const gain = (accent ? 0.9 : 0.6) * (cueOn && b >= lastBarStart ? 0.35 : 1) * clickVol;
     const freq = accent ? 1318.5 : 880;          // E6 / A5
     const t0 = Math.floor((offset + b * unitDur) * SAMPLE_RATE);
     const dur = Math.floor(0.06 * SAMPLE_RATE);
@@ -620,10 +646,14 @@ $("btnClick").addEventListener("click", async () => {
       meter.cue.forEach((u, idx) => {
         const t0 = Math.floor((offset + (lastBarStart + u) * unitDur) * SAMPLE_RATE);
         const v = voices[idx];
-        for (let i = 0; i < v.length && t0 + i < n; i++) data[t0+i] += v[i] * 0.9;
+        for (let i = 0; i < v.length && t0 + i < n; i++) data[t0+i] += v[i] * 0.9 * cueVol;
       });
     } catch (e) { setStatus($("clickStatus"), "Cue-Fehler: " + e.message, "warn"); return; }
   }
+  // Übersteuerungsschutz: bei Summen-Peaks über 0 dBFS gesamt herunterregeln
+  let peak = 0;
+  for (let i = 0; i < n; i++) peak = Math.max(peak, Math.abs(data[i]));
+  if (peak > 0.99) { const s = 0.99 / peak; for (let i = 0; i < n; i++) data[i] *= s; }
   clickBlob = encodeWav(data, SAMPLE_RATE);
   lastClickMeta = { bpm, bars, meterName };
   clickCustomFile = null; $("clickFile").value = "";
