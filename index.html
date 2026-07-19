@@ -8,55 +8,74 @@
 <script src="https://unpkg.com/wavesurfer.js@7.8.6/dist/wavesurfer.min.js"></script>
 <script src="https://unpkg.com/wavesurfer.js@7.8.6/dist/plugins/regions.min.js"></script>
 <style>
+  /* Designsprache angelehnt an den MIDI-Helper (Stone-Palette, Teal-Akzent) */
   :root {
-    --bg: #14171c; --panel: #1d2129; --panel2: #232834;
-    --text: #e6e9ef; --muted: #8b93a3; --accent: #4d9de0;
-    --ok: #4caf7d; --warn: #e0a44d; --border: #313848;
+    --bg: #f5f5f4; --card: #ffffff; --text: #1c1917; --muted: #78716c;
+    --border: #e7e5e4; --accent: #0f766e; --accent-text: #ffffff;
+    --output-bg: #f5f5f4;
+    --ok: #15803d; --warn: #b45309; --error: #dc2626;
+    color-scheme: light dark;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #191817; --card: #232120; --text: #e7e5e4; --muted: #a8a29e;
+      --border: #3a3634; --accent: #2dd4bf; --accent-text: #10201d;
+      --output-bg: #191817;
+      --ok: #4ade80; --warn: #fbbf24;
+    }
   }
   * { box-sizing: border-box; }
   body { margin: 0; background: var(--bg); color: var(--text);
-    font: 15px/1.5 -apple-system, "Segoe UI", Roboto, sans-serif; }
-  main { max-width: 860px; margin: 0 auto; padding: 24px 16px 80px; }
-  h1 { font-size: 22px; margin: 0 0 4px; }
-  h1 small { color: var(--muted); font-weight: 400; font-size: 14px; margin-left: 8px; }
-  section { background: var(--panel); border: 1px solid var(--border);
-    border-radius: 10px; padding: 18px; margin-top: 16px; }
-  section h2 { font-size: 15px; margin: 0 0 12px; color: var(--accent);
-    text-transform: uppercase; letter-spacing: .06em; }
-  label { display: block; font-size: 13px; color: var(--muted); margin: 10px 0 3px; }
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    font-size: 15px; line-height: 1.5; }
+  main { max-width: 860px; margin: 0 auto; padding: 2rem 1rem 3rem; }
+  h1 { font-size: 1.6rem; margin: 0; letter-spacing: -0.02em; }
+  h1 small { display: block; color: var(--muted); font-weight: 400;
+    font-size: 0.95rem; letter-spacing: 0; margin-top: 0.15rem; }
+  section { background: var(--card); border: 1px solid var(--border);
+    border-radius: 0.8rem; padding: 1rem 1.1rem 1.1rem; margin-top: 1rem; }
+  section h2 { font-size: 1.05rem; margin: 0 0 0.6rem; }
+  label { display: block; font-size: 0.8rem; color: var(--muted); margin: 0.6rem 0 0.25rem; }
   input[type=text], input[type=number], textarea, select {
-    width: 100%; background: var(--panel2); color: var(--text);
-    border: 1px solid var(--border); border-radius: 6px; padding: 8px 10px;
+    width: 100%; background: var(--card); color: var(--text);
+    border: 1px solid var(--border); border-radius: 0.5rem; padding: 0.45rem 0.6rem;
     font: inherit; }
-  textarea { min-height: 160px; font-family: ui-monospace, Menlo, monospace; font-size: 13px; }
-  .row { display: flex; gap: 12px; flex-wrap: wrap; }
+  input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+  textarea { min-height: 160px; font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 13px; background: var(--output-bg); }
+  .row { display: flex; gap: 0.75rem; flex-wrap: wrap; }
   .row > div { flex: 1; min-width: 140px; }
-  button { background: var(--panel2); color: var(--text); border: 1px solid var(--border);
-    border-radius: 6px; padding: 8px 14px; font: inherit; cursor: pointer; }
+  button { background: var(--card); color: var(--text); border: 1px solid var(--border);
+    border-radius: 0.6rem; padding: 0.55rem 0.9rem; font: inherit; font-size: 0.95rem; cursor: pointer; }
   button:hover { border-color: var(--accent); }
-  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
-  button.small { padding: 4px 10px; font-size: 13px; }
-  .drop { border: 2px dashed var(--border); border-radius: 10px; padding: 26px;
+  button.primary { background: var(--accent); border-color: var(--accent);
+    color: var(--accent-text); font-weight: 600; }
+  button.primary:hover { filter: brightness(1.08); }
+  button.small { padding: 0.35rem 0.7rem; font-size: 0.85rem; }
+  .drop { border: 2px dashed var(--border); border-radius: 0.8rem; padding: 1.6rem;
     text-align: center; color: var(--muted); cursor: pointer; transition: border-color .15s; }
   .drop.over, .drop:hover { border-color: var(--accent); color: var(--text); }
   .drop.loaded { border-style: solid; border-color: var(--ok); color: var(--text); }
-  .hint { font-size: 12.5px; color: var(--muted); margin-top: 6px; }
+  .hint { font-size: 0.82rem; color: var(--muted); margin-top: 6px; }
   .hint a { color: var(--accent); }
-  .status { font-size: 13px; margin-left: 10px; }
+  .status { font-size: 0.85rem; margin-left: 10px; }
   .status.ok { color: var(--ok); } .status.warn { color: var(--warn); }
-  #waveform { background: var(--panel2); border-radius: 8px; margin-top: 10px; }
-  table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 13.5px; }
+  #waveform { background: var(--output-bg); border: 1px solid var(--border);
+    border-radius: 0.5rem; margin-top: 10px; }
+  table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.9rem; }
   th { text-align: left; color: var(--muted); font-weight: 500; padding: 4px 6px; }
   td { padding: 4px 6px; border-top: 1px solid var(--border); }
-  td input, td select { padding: 4px 6px; font-size: 13px; }
+  td input, td select { padding: 4px 6px; font-size: 0.85rem; }
   .band-only { display: none; }
   body.band .band-only { display: block; }
   .toggle { display: flex; align-items: center; gap: 10px; margin-top: 12px;
-    background: var(--panel2); padding: 10px 14px; border-radius: 8px; cursor: pointer; }
-  .toggle input { width: 18px; height: 18px; }
-  .tabs { display: flex; gap: 8px; margin-top: 14px; }
-  .tabs button { padding: 8px 16px; border-radius: 8px; }
-  .tabs button.active { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+    background: var(--output-bg); border: 1px solid var(--border);
+    padding: 0.6rem 0.9rem; border-radius: 0.6rem; cursor: pointer; }
+  .toggle input { width: 18px; height: 18px; accent-color: var(--accent); }
+  .tabs { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 1rem; }
+  .tabs button { flex: 1 1 auto; }
+  .tabs button.active { background: var(--accent); border-color: var(--accent);
+    color: var(--accent-text); font-weight: 600; }
   body.optimize .create-only { display: none !important; }
   .opt-only { display: none; }
   body.optimize .opt-only { display: block; }
@@ -65,10 +84,11 @@
   .ct-only { display: none; }
   body.clicktrack .ct-only { display: block; }
   body.clicktrack .ct-hide { display: none !important; }
-  .diag { font-size: 13px; margin: 2px 0; color: var(--muted); }
+  .diag { font-size: 0.85rem; margin: 2px 0; color: var(--muted); }
   .diag.ok { color: var(--ok); } .diag.warn { color: var(--warn); }
-  .proposal { border: 1px solid var(--accent); border-radius: 8px; padding: 10px; margin-top: 10px; background: var(--panel2); }
-  footer { color: var(--muted); font-size: 12.5px; margin-top: 26px; text-align: center; }
+  .proposal { border: 1px solid var(--accent); border-radius: 0.6rem;
+    padding: 0.7rem; margin-top: 10px; background: var(--output-bg); }
+  footer { color: var(--muted); font-size: 0.8rem; margin-top: 1.6rem; text-align: center; }
 </style>
 </head>
 <body>
@@ -156,7 +176,7 @@
       <div style="margin-top:8px"><input type="file" id="clickFile" accept="audio/*"></div>
     </div>
     <audio id="clickPreview" controls style="width:100%; margin-top:10px; display:none"></audio>
-    <div style="margin-top:10px"><button id="btnClickDl" style="display:none">⬇ Click als WAV herunterladen</button></div>
+    <div style="margin-top:10px"><button id="btnClickDl" class="primary" style="display:none">⬇ Click als WAV herunterladen</button></div>
   </section>
 
   <!-- 4. Lyrics -->
@@ -444,12 +464,15 @@ function initWaveform(file) {
   regionMeta.clear();
   renderRegionTable();
   wsRegions = WaveSurfer.Regions.create();
+  // Farben aus dem CSS-Theme übernehmen (Light/Dark)
+  const css = getComputedStyle(document.documentElement);
+  const theme = p => css.getPropertyValue(p).trim();
   wavesurfer = WaveSurfer.create({
     container: "#waveform", height: 96, url: URL.createObjectURL(file),
-    waveColor: "#3d4657", progressColor: "#4d9de0", cursorColor: "#e6e9ef",
+    waveColor: theme("--muted"), progressColor: theme("--accent"), cursorColor: theme("--text"),
     plugins: [wsRegions],
   });
-  wsRegions.enableDragSelection({ color: "rgba(77,157,224,0.25)" });
+  wsRegions.enableDragSelection({ color: theme("--accent") + "40" });
   wsRegions.on("region-created", r => {
     if (!regionMeta.has(r.id)) {
       const n = regionMeta.size + 1;
